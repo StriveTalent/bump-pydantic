@@ -37,6 +37,9 @@ class ClassDefVisitor(VisitorBasedCodemodCommand):
             {
                 "pydantic.BaseModel",
                 "pydantic.main.BaseModel",
+                "ninja.Schema",
+                "ninja_schema.ModelSchema",
+                "ninja_schema.Schema",
                 *(extra_base_models or []),
             },
         )
