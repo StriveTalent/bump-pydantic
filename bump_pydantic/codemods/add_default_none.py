@@ -85,9 +85,14 @@ class AddDefaultNoneCommand(VisitorBasedCodemodCommand):
                 assert isinstance(updated_node.value, cst.Call)
                 args = updated_node.value.args
                 if args:
-                    # NOTE: It has a "default" value as positional argument. Nothing to do.
                     if args[0].keyword is None:
-                        ...
+                        if m.matches(args[0].value, m.Ellipsis()):
+                            updated_node = updated_node.with_changes(
+                                value=updated_node.value.with_changes(args=[cst.Arg(value=cst.Name("None")), *args[1:]])
+                            )
+                        else:
+                            # NOTE: It has a "default" value as positional argument. Nothing to do.
+                            ...
                     # NOTE: It has a "default" or "default_factory" keyword argument. Nothing to do.
                     elif any(arg.keyword and arg.keyword.value in ("default", "default_factory") for arg in args):
                         ...
