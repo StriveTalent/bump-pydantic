@@ -14,6 +14,7 @@ from bump_pydantic.codemods.replace_generic_model import ReplaceGenericModelComm
 from bump_pydantic.codemods.replace_imports import ReplaceImportsCodemod
 from bump_pydantic.codemods.root_model import RootModelCommand
 from bump_pydantic.codemods.validator import ValidatorCodemod
+from bump_pydantic.codemods.non_nullable_but_default_none import NonNullableButDefaultNoneCommand
 
 
 class Rule(str, Enum):
@@ -37,6 +38,8 @@ class Rule(str, Enum):
     """Mark Pydantic "protocol" functions in custom types with proper TODOs."""
     BP010 = "BP010"
     """Add type annotations or TODOs to fields without them."""
+    BP011 = "BP011"
+    """Add TODOs to non-nullable fields with a None default."""
 
 
 def gather_codemods(disabled: List[Rule]) -> List[Type[ContextAwareTransformer]]:
@@ -72,6 +75,9 @@ def gather_codemods(disabled: List[Rule]) -> List[Type[ContextAwareTransformer]]
 
     if Rule.BP010 not in disabled:
         codemods.append(AddAnnotationsCommand)
+
+    if Rule.BP011 not in disabled:
+        codemods.append(NonNullableButDefaultNoneCommand)
 
     # Those codemods need to be the last ones.
     codemods.extend([RemoveImportsVisitor, AddImportsVisitor])
