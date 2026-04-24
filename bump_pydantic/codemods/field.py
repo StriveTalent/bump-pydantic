@@ -30,6 +30,22 @@ IMPORT_FIELD = m.Module(
                     ],
                 )
                 | m.ImportFrom(
+                    module=m.Name("pydantic"),
+                    names=[
+                        m.ZeroOrMore(),
+                        m.ImportAlias(name=m.Name("PydanticField")),
+                        m.ZeroOrMore(),
+                    ],
+                )
+                | m.ImportFrom(
+                    module=m.Name("ninja"),
+                    names=[
+                        m.ZeroOrMore(),
+                        m.ImportAlias(name=m.Name("Field")),
+                        m.ZeroOrMore(),
+                    ],
+                )
+                | m.ImportFrom(
                     module=m.Name("pydantic") | m.Name("pydantic_settings"),
                     names=[
                         m.ZeroOrMore(),
@@ -46,6 +62,8 @@ IMPORT_FIELD = m.Module(
 
 ANN_ASSIGN_WITH_FIELD = m.AnnAssign(
     value=m.Call(func=m.Name("Field")),
+) | m.AnnAssign(
+    value=m.Call(func=m.Name("PydanticField")),
 ) | m.AnnAssign(
     annotation=m.Annotation(
         annotation=m.Subscript(
@@ -99,14 +117,14 @@ class FieldCodemod(VisitorBasedCodemodCommand):
             value=self._const.value,
         )
 
-    @m.visit(m.Call(func=m.Name("Field")))
+    @m.visit(m.Call(func=m.Name("Field") | m.Name("PydanticField")))
     def visit_field_call(self, node: cst.Call) -> None:
         # Check if there's a `const=True` argument.
         const_arg = m.Arg(value=m.Name("True"), keyword=m.Name("const"))
         if m.matches(node, m.Call(func=m.Name("Field"), args=[~m.Arg(value=m.Name("...")), const_arg])):
             self._const = node.args[0]
 
-    @m.leave(m.Call(func=m.Name("Field")))
+    @m.leave(m.Call(func=m.Name("Field") | m.Name("PydanticField")))
     def leave_field_call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         if not self.has_field_import or not self.inside_field_assign:
             return updated_node
