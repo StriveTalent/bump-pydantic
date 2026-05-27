@@ -3,6 +3,15 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/bump-pydantic.svg)](https://pypi.org/project/bump-pydantic)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/bump-pydantic.svg)](https://pypi.org/project/bump-pydantic)
 
+---
+
+## Archived
+
+Pydantic V1 has long been EOL, and most users have migrated to Pydatnic V2.
+
+We're therefore archiving this repo. Please [get in touch](https://pydantic.dev/docs/validation/latest/get-started/help_with_pydantic/) if you haven any questions.
+
+---
 
 Bump Pydantic is a tool to help you migrate your code from Pydantic V1 to V2.
 
