@@ -50,6 +50,7 @@ def version_callback(value: bool):
 def main(
     path: Path = Argument(..., exists=True, dir_okay=True, allow_dash=False),
     disable: List[Rule] = Option(default=[], help="Disable a rule."),
+    enable: List[Rule] = Option(default=[], help="Enable a rule."),
     diff: bool = Option(False, help="Show diff instead of applying changes."),
     ignore: List[str] = Option(default=DEFAULT_IGNORES, help="Ignore a path glob pattern."),
     extra_ignore: List[str] = Option(default=[], help="Ignore a path glob pattern in addition to paths ignored by default."),
@@ -67,6 +68,8 @@ def main(
 
     Check the README for more information: https://github.com/pydantic/bump-pydantic.
     """
+    assert not (enable and disable), "Specifying both --enable and --disable is not supported"
+
     console = Console(log_time=True)
     console.log("Start bump-pydantic.")
     # NOTE: LIBCST_PARSER_TYPE=native is required according to https://github.com/Instagram/LibCST/issues/487.
@@ -128,7 +131,7 @@ def main(
 
     start_time = time.time()
 
-    codemods = gather_codemods(disabled=disable)
+    codemods = gather_codemods(disabled=disable, enabled=enable)
 
     log_fp = log_file.open("a+", encoding="utf8")
     partial_run_codemods = functools.partial(run_codemods, codemods, metadata_manager, scratch, package, diff)

@@ -42,41 +42,48 @@ class Rule(str, Enum):
     """Add TODOs to non-nullable fields with a None default."""
 
 
-def gather_codemods(disabled: List[Rule]) -> List[Type[ContextAwareTransformer]]:
+def gather_codemods(disabled: List[Rule], enabled: List[Rule]) -> List[Type[ContextAwareTransformer]]:
     codemods: List[Type[ContextAwareTransformer]] = []
 
-    if Rule.BP001 not in disabled:
+    def is_enabled(rule: Rule) -> bool:
+        if disabled:
+            return rule not in disabled
+        if enabled:
+            return rule in enabled
+        return True
+
+    if is_enabled(Rule.BP001):
         codemods.append(AddDefaultNoneCommand)
 
-    if Rule.BP002 not in disabled:
+    if is_enabled(Rule.BP002):
         codemods.append(ReplaceConfigCodemod)
 
     # The `ConFuncCallCommand` needs to run before the `FieldCodemod`.
-    if Rule.BP008 not in disabled:
+    if is_enabled(Rule.BP008):
         codemods.append(ConFuncCallCommand)
 
-    if Rule.BP003 not in disabled:
+    if is_enabled(Rule.BP003):
         codemods.append(FieldCodemod)
 
-    if Rule.BP004 not in disabled:
+    if is_enabled(Rule.BP004):
         codemods.append(ReplaceImportsCodemod)
 
-    if Rule.BP005 not in disabled:
+    if is_enabled(Rule.BP005):
         codemods.append(ReplaceGenericModelCommand)
 
-    if Rule.BP006 not in disabled:
+    if is_enabled(Rule.BP006):
         codemods.append(RootModelCommand)
 
-    if Rule.BP007 not in disabled:
+    if is_enabled(Rule.BP007):
         codemods.append(ValidatorCodemod)
 
-    if Rule.BP009 not in disabled:
+    if is_enabled(Rule.BP009):
         codemods.append(CustomTypeCodemod)
 
-    if Rule.BP010 not in disabled:
+    if is_enabled(Rule.BP010):
         codemods.append(AddAnnotationsCommand)
 
-    if Rule.BP011 not in disabled:
+    if is_enabled(Rule.BP011):
         codemods.append(NonNullableButDefaultNoneCommand)
 
     # Those codemods need to be the last ones.
