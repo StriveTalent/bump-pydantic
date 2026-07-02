@@ -52,6 +52,7 @@ def main(
     disable: List[Rule] = Option(default=[], help="Disable a rule."),
     diff: bool = Option(False, help="Show diff instead of applying changes."),
     ignore: List[str] = Option(default=DEFAULT_IGNORES, help="Ignore a path glob pattern."),
+    extra_ignore: List[str] = Option(default=[], help="Ignore a path glob pattern in addition to paths ignored by default."),
     extra_base_models: List[str] = Option(default=[], help="Fully qualified names of classes to consider as BaseModel in addition to the default"),
     log_file: Path = Option("log.txt", help="Log errors to this file."),
     version: bool = Option(
@@ -78,7 +79,7 @@ def main(
         package = path
         all_files = sorted(package.glob("**/*.py"))
 
-    filtered_files = [file for file in all_files if not any(match_glob(file, pattern) for pattern in ignore)]
+    filtered_files = [file for file in all_files if not any(match_glob(file, pattern) for pattern in (ignore + extra_ignore))]
     files = [str(file.relative_to(".")) for file in filtered_files]
 
     if len(files) == 1:
