@@ -42,7 +42,8 @@ class B(BaseModel):
 """.splitlines()
 
 config_dict_and_settings_before = """\
-from pydantic import BaseModel, BaseSettings
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -59,7 +60,7 @@ class A(BaseModel):
 
 config_dict_and_settings_after = """\
 from pydantic import ConfigDict, BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict, BaseSettings
 
 
 class Settings(BaseSettings):

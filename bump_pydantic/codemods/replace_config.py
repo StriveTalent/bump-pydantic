@@ -4,7 +4,9 @@ import libcst as cst
 from libcst import matchers as m
 from libcst.codemod import CodemodContext, VisitorBasedCodemodCommand
 from libcst.codemod.visitors import AddImportsVisitor, RemoveImportsVisitor
-from libcst.metadata import ClassScope, ScopeProvider
+from libcst.metadata import ClassScope, FullyQualifiedNameProvider, ScopeProvider
+
+from bump_pydantic.codemods.class_def_visitor import ClassDefVisitor
 
 PREFIX_COMMENT = "# TODO[pydantic]: "
 REFACTOR_COMMENT = f"{PREFIX_COMMENT}We couldn't refactor this class, please create the `model_config` manually."
@@ -109,20 +111,30 @@ class Config:
 ```
 """
 
-
 class ReplaceConfigCodemod(VisitorBasedCodemodCommand):
     """Replace `Config` class by `ConfigDict` call."""
 
-    METADATA_DEPENDENCIES = (ScopeProvider,)
+    METADATA_DEPENDENCIES = (FullyQualifiedNameProvider, ScopeProvider)
 
     def __init__(self, context: CodemodContext) -> None:
         super().__init__(context)
 
+        self.inside_base_model = False
         self.inside_config_class = False
         self.is_base_settings = False
         self.invalid_config_class = False
         self.inherited_config_class = False
         self.config_args: List[cst.Arg] = []
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:
+        fqn_set = self.get_metadata(FullyQualifiedNameProvider, node)
+
+        if not fqn_set:
+            return None
+
+        fqn: QualifiedName = next(iter(fqn_set))  # type: ignore
+        if fqn.name in self.context.scratch[ClassDefVisitor.BASE_MODEL_CONTEXT_KEY]:
+            self.inside_base_model = True
 
     @m.visit(m.ClassDef(bases=[m.ZeroOrMore(), m.Arg(value=m.Name("BaseSettings")), m.ZeroOrMore()]))
     def visit_settings_with_config(self, node: cst.ClassDef) -> None:
@@ -130,12 +142,16 @@ class ReplaceConfigCodemod(VisitorBasedCodemodCommand):
 
     @m.visit(m.ClassDef(name=m.Name(value="Config")))
     def visit_config_class(self, node: cst.ClassDef) -> None:
+        if not self.inside_base_model:
+            return
         scope = self.get_metadata(ScopeProvider, node)
         if isinstance(scope, ClassScope):
             self.inside_config_class = True
 
     @m.leave(m.ClassDef(name=m.Name(value="Config")))
     def leave_config_class(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+        if not self.inside_base_model:
+            return updated_node
         self.inside_config_class = False
         if self.invalid_config_class or self.inherited_config_class:
             for line in updated_node.leading_lines:
@@ -161,9 +177,13 @@ class ReplaceConfigCodemod(VisitorBasedCodemodCommand):
         return updated_node
 
     def visit_Assign(self, node: cst.Assign) -> None:
+        if not self.inside_base_model:
+            return
         self.assign_value = node.value
 
     def visit_AssignTarget(self, node: cst.AssignTarget) -> None:
+        if not self.inside_base_model:
+            return
         if self.inside_config_class:
             keyword = RENAMED_KEYS.get(node.target.value, node.target.value)  # type: ignore[attr-defined]
             if m.matches(self.assign_value, EXTRA_ATTRIBUTE):
@@ -207,6 +227,9 @@ class ReplaceConfigCodemod(VisitorBasedCodemodCommand):
         assigned a `ConfigDict` object with the same arguments as the attributes
         from `Config` class.
         """
+        if not self.inside_base_model:
+            return updated_node
+        self.inside_base_model = False
         if self.invalid_config_class:
             self.invalid_config_class = False
             return updated_node
@@ -251,8 +274,12 @@ class ReplaceConfigCodemod(VisitorBasedCodemodCommand):
 
 
 if __name__ == "__main__":
+    import os
     import textwrap
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
 
+    from libcst.metadata import FullRepoManager
     from rich.console import Console
 
     console = Console()
@@ -284,14 +311,21 @@ if __name__ == "__main__":
     console.print(source)
     console.print("=" * 80)
 
-    mod = cst.parse_module(source)
-    context = CodemodContext(filename="main.py")
-    wrapper = cst.MetadataWrapper(mod)
-    command = ReplaceConfigCodemod(context=context)
-    console.print(mod)
+    with TemporaryDirectory(dir=os.getcwd()) as tmpdir:
+        package_dir = f"{tmpdir}/package"
+        os.mkdir(package_dir)
+        module_path = f"{package_dir}/a.py"
+        with open(module_path, "w") as f:
+            f.write(source)
 
-    mod = wrapper.visit(command)
-    wrapper = cst.MetadataWrapper(mod)
-    command = AddImportsVisitor(context=context)  # type: ignore[assignment]
-    mod = wrapper.visit(command)
-    console.print(mod.code)
+        module = str(Path(module_path).relative_to(tmpdir))
+        mrg = FullRepoManager(tmpdir, {module_path}, providers={FullyQualifiedNameProvider, ScopeProvider})
+        wrapper = mrg.get_metadata_wrapper_for_path(module_path)
+        context = CodemodContext(wrapper=wrapper)
+        command = ReplaceConfigCodemod(context=context)
+
+        mod = wrapper.visit(command)
+        wrapper = cst.MetadataWrapper(mod)
+        command = AddImportsVisitor(context=context)  # type: ignore[assignment]
+        mod = wrapper.visit(command)
+        console.print(mod.code)

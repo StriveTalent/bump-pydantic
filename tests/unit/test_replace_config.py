@@ -1,10 +1,10 @@
 import pytest
-from libcst.codemod import CodemodTest
 
 from bump_pydantic.codemods.replace_config import ReplaceConfigCodemod
 
+from .base import BPTest
 
-class TestReplaceConfigCommand(CodemodTest):
+class TestReplaceConfigCommand(BPTest):
     TRANSFORM = ReplaceConfigCodemod
 
     maxDiff = None
@@ -312,3 +312,13 @@ class TestReplaceConfigCommand(CodemodTest):
                 super().__init_subclass__(**kwargs)
         """
         self.assertCodemod(before, after)
+
+    def test_noop_v1(self) -> None:
+        before = """
+        from pydantic.v1 import BaseModel
+
+        class Potato(BaseModel):
+            class Config:
+                allow_arbitrary_types = True
+        """
+        self.assertCodemod(before, before)
