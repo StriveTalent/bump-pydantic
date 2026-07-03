@@ -6,7 +6,7 @@ from libcst.codemod import CodemodContext, VisitorBasedCodemodCommand
 from libcst.codemod.visitors import AddImportsVisitor, RemoveImportsVisitor
 from libcst.metadata import ClassScope, FullyQualifiedNameProvider, ScopeProvider
 
-from bump_pydantic.codemods.class_def_visitor import ClassDefVisitor
+from bump_pydantic.codemods.class_def_visitor import is_a_base_model
 
 PREFIX_COMMENT = "# TODO[pydantic]: "
 REFACTOR_COMMENT = f"{PREFIX_COMMENT}We couldn't refactor this class, please create the `model_config` manually."
@@ -127,13 +127,7 @@ class ReplaceConfigCodemod(VisitorBasedCodemodCommand):
         self.config_args: List[cst.Arg] = []
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:
-        fqn_set = self.get_metadata(FullyQualifiedNameProvider, node)
-
-        if not fqn_set:
-            return None
-
-        fqn: QualifiedName = next(iter(fqn_set))  # type: ignore
-        if fqn.name in self.context.scratch[ClassDefVisitor.BASE_MODEL_CONTEXT_KEY]:
+        if is_a_base_model(self, node):
             self.inside_base_model = True
 
     @m.visit(m.ClassDef(bases=[m.ZeroOrMore(), m.Arg(value=m.Name("BaseSettings")), m.ZeroOrMore()]))

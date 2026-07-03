@@ -1,9 +1,9 @@
-from libcst.codemod import CodemodTest
-
 from bump_pydantic.codemods.replace_generic_model import ReplaceGenericModelCommand
 
+from .base import BPTest
 
-class TestReplaceGenericModelCommand(CodemodTest):
+
+class TestReplaceGenericModelCommand(BPTest):
     TRANSFORM = ReplaceGenericModelCommand
 
     def test_noop(self) -> None:

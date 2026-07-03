@@ -111,6 +111,18 @@ class ClassDefVisitor(VisitorBasedCodemodCommand):
         return None
 
 
+def is_a_base_model(visitor: VisitorBasedCodemodCommand, node: cst.ClassDef) -> bool:
+    fqn_set = visitor.get_metadata(FullyQualifiedNameProvider, node)
+
+    if not fqn_set:
+        return False
+
+    fqn: QualifiedName = next(iter(fqn_set))  # type: ignore
+    if fqn.name in visitor.context.scratch[ClassDefVisitor.BASE_MODEL_CONTEXT_KEY]:
+        return True
+    return False
+
+
 if __name__ == "__main__":
     import os
     import textwrap
