@@ -1,33 +1,11 @@
 import textwrap
-from pathlib import Path
-
-import libcst as cst
-from libcst import MetadataWrapper, parse_module
-from libcst.codemod import CodemodContext, CodemodTest
-from libcst.metadata import FullyQualifiedNameProvider
-from libcst.testing.utils import UnitTest
 
 from bump_pydantic.codemods.add_annotations import AddAnnotationsCommand
-from bump_pydantic.codemods.class_def_visitor import ClassDefVisitor
 
+from .base import BPTest
 
-class TestAddAnnotationsCommand(UnitTest):
-    def add_annotations(self, file_path: str, code: str) -> cst.Module:
-        mod = MetadataWrapper(
-            parse_module(CodemodTest.make_fixture_data(code)),
-            cache={
-                FullyQualifiedNameProvider: FullyQualifiedNameProvider.gen_cache(Path(""), [file_path], None).get(
-                    file_path, ""
-                )
-            },
-        )
-        mod.resolve_many(AddAnnotationsCommand.METADATA_DEPENDENCIES)
-        context = CodemodContext(wrapper=mod)
-        instance = ClassDefVisitor(context=context)
-        mod.visit(instance)
-
-        instance = AddAnnotationsCommand(context=context)  # type: ignore[assignment]
-        return mod.visit(instance)
+class TestAddAnnotationsCommand(BPTest):
+    TRANSFORM = AddAnnotationsCommand
 
     def test_not_a_model(self) -> None:
         source = textwrap.dedent(
@@ -36,8 +14,7 @@ class TestAddAnnotationsCommand(UnitTest):
                 a = True
             """
         ).lstrip()
-        module = self.add_annotations("some/test/module.py", source)
-        assert module.code == source
+        self.assertCodemod(source, source)
 
     def test_has_annotation(self) -> None:
         source = textwrap.dedent(
@@ -48,12 +25,7 @@ class TestAddAnnotationsCommand(UnitTest):
                 a: bool = True
             """
         ).lstrip()
-        module = self.add_annotations(
-            "some/test/module.py",
-            source,
-        )
-
-        assert module.code == source
+        self.assertCodemod(source, source)
 
     def test_add_annotations(self) -> None:
         source = textwrap.dedent(
@@ -76,10 +48,6 @@ class TestAddAnnotationsCommand(UnitTest):
                     return something
             """
         ).lstrip()
-        module = self.add_annotations(
-            "some/test/module.py",
-            source,
-        )
         expected = textwrap.dedent(
             """
             from pydantic import BaseModel, Field
@@ -101,7 +69,7 @@ class TestAddAnnotationsCommand(UnitTest):
                     return something
             """
         ).lstrip()
-        assert module.code == expected
+        self.assertCodemod(source, expected)
 
     def test_with_multiple_classes(self) -> None:
         source = textwrap.dedent(
@@ -133,10 +101,6 @@ class TestAddAnnotationsCommand(UnitTest):
                     return something
             """
         ).lstrip()
-        module = self.add_annotations(
-            "some/test/module.py",
-            source,
-        )
         expected = textwrap.dedent(
             """
             from pydantic import BaseModel, Field
@@ -168,4 +132,4 @@ class TestAddAnnotationsCommand(UnitTest):
                     return something
             """
         ).lstrip()
-        assert module.code == expected
+        self.assertCodemod(source, expected)
