@@ -16,6 +16,7 @@ from libcst.metadata import FullRepoManager, FullyQualifiedNameProvider, ScopePr
 from rich.console import Console
 from rich.progress import Progress
 from typer import Argument, Exit, Option, Typer, echo
+from typer_config import use_toml_config
 from typing_extensions import ParamSpec
 
 from bump_pydantic import __version__
@@ -45,6 +46,7 @@ def version_callback(value: bool):
 
 
 @app.callback()
+@use_toml_config(default_value="bump-pydantic.toml")
 def main(
     path: Path = Argument(..., exists=True, dir_okay=True, allow_dash=False),
     disable: List[Rule] = Option(default=[], help="Disable a rule."),
@@ -134,6 +136,8 @@ def main(
         difflines: List[List[str]] = []
         with multiprocessing.Pool(processes=processes) as pool:
             for error, _difflines in pool.imap_unordered(partial_run_codemods, files):
+            #for error, _difflines in [partial_run_codemods(f) for f in files]):
+
                 progress.advance(task)
 
                 if _difflines is not None:
