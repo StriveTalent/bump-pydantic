@@ -1,10 +1,11 @@
 import pytest
-from libcst.codemod import CodemodTest
 
 from bump_pydantic.codemods.validator import ValidatorCodemod
 
+from .base import BPTest
 
-class TestValidatorCommand(CodemodTest):
+
+class TestValidatorCommand(BPTest):
     TRANSFORM = ValidatorCodemod
 
     maxDiff = None
@@ -141,7 +142,7 @@ class TestValidatorCommand(CodemodTest):
             dialect: str
 
             # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
-            # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
+            # Check https://pydantic.dev/docs/validation/latest/get-started/migration/#changes-to-validators for more information.
             @validator("name", "dialect")
             def _string_validator(cls, v: t.Any, values: t.Dict[str, t.Any], **kwargs) -> t.Optional[str]:
                 if isinstance(v, exp.Expression):
@@ -199,15 +200,17 @@ class TestValidatorCommand(CodemodTest):
                     values["gateways"] = values.pop("gateway")
         """
         after = """
-        from pydantic import model_validator, BaseModel
+        from pydantic import root_validator, BaseModel
 
 
         class Potato(BaseModel):
             name: str
             dialect: str
 
-            @model_validator()
-            @classmethod
+            # TODO[pydantic]: We couldn't refactor the `root_validator`, please replace it by `model_validator` manually.
+            # Check https://pydantic.dev/docs/validation/latest/get-started/migration/#changes-to-validators for more information.
+            # @model_validator(mode="after")
+            @root_validator(pre=False)
             def _normalize_fields(cls, values: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
                 if "gateways" not in values and "gateway" in values:
                     values["gateways"] = values.pop("gateway")
@@ -216,7 +219,7 @@ class TestValidatorCommand(CodemodTest):
 
     def test_replace_validator_without_pre(self) -> None:
         before = """
-        from pydantic import validator
+        from pydantic import BaseModel, validator
 
 
         class Potato(BaseModel):
@@ -230,7 +233,7 @@ class TestValidatorCommand(CodemodTest):
                 return str(v).lower() if v is not None else None
         """
         after = """
-        from pydantic import field_validator
+        from pydantic import field_validator, BaseModel
 
 
         class Potato(BaseModel):
@@ -248,7 +251,7 @@ class TestValidatorCommand(CodemodTest):
 
     def test_replace_validator_with_pre_false(self) -> None:
         before = """
-        from pydantic import validator
+        from pydantic import BaseModel, validator
 
 
         class Potato(BaseModel):
@@ -262,7 +265,7 @@ class TestValidatorCommand(CodemodTest):
                 return str(v).lower() if v is not None else None
         """
         after = """
-        from pydantic import field_validator
+        from pydantic import field_validator, BaseModel
 
 
         class Potato(BaseModel):
@@ -319,7 +322,6 @@ class TestValidatorCommand(CodemodTest):
         """
         self.assertCodemod(before, after)
 
-    @pytest.mark.xfail(reason="Not implemented yet.")
     def test_root_validator_as_cst_name(self) -> None:
         before = """
         import typing as t
@@ -338,14 +340,17 @@ class TestValidatorCommand(CodemodTest):
         after = """
         import typing as t
 
-        from pydantic import BaseModel, model_validator
+        from pydantic import BaseModel, root_validator
 
 
         class Potato(BaseModel):
             name: str
             dialect: str
 
-            @model_validator
+            # TODO[pydantic]: We couldn't refactor the `root_validator`, please replace it by `model_validator` manually.
+            # Check https://pydantic.dev/docs/validation/latest/get-started/migration/#changes-to-validators for more information.
+            # @model_validator(mode="after")
+            @root_validator
             def _normalize_fields(cls, values: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
                 return values
         """
@@ -363,7 +368,7 @@ class TestValidatorCommand(CodemodTest):
             dialect: str
 
             # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
-            # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
+            # Check https://pydantic.dev/docs/validation/latest/get-started/migration/#changes-to-validators for more information.
             @validator("name", "dialect")
             def _string_validator(cls, v: t.Any, values: t.Dict[str, t.Any], **kwargs) -> t.Optional[str]:
                 if isinstance(v, exp.Expression):
