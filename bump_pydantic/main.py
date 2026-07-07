@@ -52,6 +52,7 @@ def main(
     disable: List[Rule] = Option(default=[], help="Disable a rule."),
     diff: bool = Option(False, help="Show diff instead of applying changes."),
     ignore: List[str] = Option(default=DEFAULT_IGNORES, help="Ignore a path glob pattern."),
+    extra_base_models: List[str] = Option(default=[], help="Fully qualified names of classes to consider as BaseModel in addition to the default"),
     log_file: Path = Option("log.txt", help="Log errors to this file."),
     version: bool = Option(
         None,
@@ -116,7 +117,7 @@ def main(
                 full_package_name=module_and_package.package,
                 scratch=scratch,
             )
-            visitor = ClassDefVisitor(context=context)
+            visitor = ClassDefVisitor(context=context, extra_base_models=extra_base_models)
             visitor.transform_module(module)
 
             # Queue logic

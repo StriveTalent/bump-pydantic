@@ -13,6 +13,7 @@ There are two objects in the visitor:
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from typing import Set, cast
 
 import libcst as cst
@@ -27,13 +28,17 @@ class ClassDefVisitor(VisitorBasedCodemodCommand):
     NO_BASE_MODEL_CONTEXT_KEY = "no_base_model_cls"
     CLS_CONTEXT_KEY = "cls"
 
-    def __init__(self, context: CodemodContext) -> None:
+    def __init__(self, context: CodemodContext, extra_base_models: Sequence[str] | None = None) -> None:
         super().__init__(context)
         self.module_fqn: None | QualifiedName = None
 
         self.context.scratch.setdefault(
             self.BASE_MODEL_CONTEXT_KEY,
-            {"pydantic.BaseModel", "pydantic.main.BaseModel"},
+            {
+                "pydantic.BaseModel",
+                "pydantic.main.BaseModel",
+                *(extra_base_models or []),
+            },
         )
         self.context.scratch.setdefault(self.NO_BASE_MODEL_CONTEXT_KEY, set())
         self.context.scratch.setdefault(self.CLS_CONTEXT_KEY, defaultdict(set))
