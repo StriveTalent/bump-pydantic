@@ -1,9 +1,9 @@
-from libcst.codemod import CodemodTest
-
 from bump_pydantic.codemods.con_func import ConFuncCallCommand
 
+from .base import BPTest
 
-class TestFieldCommand(CodemodTest):
+
+class TestFieldCommand(BPTest):
     TRANSFORM = ConFuncCallCommand
 
     maxDiff = None

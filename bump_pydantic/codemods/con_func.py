@@ -4,6 +4,9 @@ import libcst as cst
 from libcst import matchers as m
 from libcst.codemod import CodemodContext, VisitorBasedCodemodCommand
 from libcst.codemod.visitors import AddImportsVisitor, RemoveImportsVisitor
+from libcst.metadata import FullyQualifiedNameProvider
+
+from bump_pydantic.codemods.class_def_visitor import is_a_base_model
 
 CONSTR_CALL = m.Call(func=m.Name("constr") | m.Attribute(value=m.Name("pydantic"), attr=m.Name("constr")))
 CON_NUMBER_CALL = m.OneOf(
@@ -39,11 +42,26 @@ COLLECTIONS = ("List", "Set", "FrozenSet")
 
 
 class ConFuncCallCommand(VisitorBasedCodemodCommand):
+    METADATA_DEPENDENCIES = (FullyQualifiedNameProvider,)
+
     def __init__(self, context: CodemodContext) -> None:
         super().__init__(context)
 
+        self._inside_base_model = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:
+        if is_a_base_model(self, node):
+            self._inside_base_model = True
+
+    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+        if is_a_base_model(self, original_node):
+            self._inside_base_model = False
+        return updated_node
+
     @m.leave(CON_NUMBER_CALL | CON_COLLECTION_CALL | CONSTR_CALL)
     def leave_annotation_call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Subscript:
+        if not self._inside_base_model:
+            return updated_node
         if m.matches(original_node.func, m.Name()):
             func_name = cast(str, original_node.func.value)  # type: ignore
         else:
@@ -75,6 +93,8 @@ class ConFuncCallCommand(VisitorBasedCodemodCommand):
 
     @m.leave(CONSTR_CALL)
     def leave_constr_call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
+        if not self._inside_base_model:
+            return updated_node
         self._remove_import(original_node.func)
         AddImportsVisitor.add_needed_import(context=self.context, module="pydantic", obj="StringConstraints")
         return updated_node.with_changes(
@@ -87,12 +107,16 @@ class ConFuncCallCommand(VisitorBasedCodemodCommand):
 
     @m.leave(CON_NUMBER_CALL)
     def leave_con_number_call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
+        if not self._inside_base_model:
+            return updated_node
         self._remove_import(original_node.func)
         AddImportsVisitor.add_needed_import(context=self.context, module="pydantic", obj="Field")
         return updated_node.with_changes(func=cst.Name("Field"))
 
     @m.leave(CON_COLLECTION_CALL)
     def leave_con_collection_call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
+        if not self._inside_base_model:
+            return updated_node
         self._remove_import(original_node.func)
         AddImportsVisitor.add_needed_import(context=self.context, module="pydantic", obj="Field")
         # NOTE: It's guaranteed to have at least one argument.
