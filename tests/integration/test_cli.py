@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import difflib
 from pathlib import Path
 
@@ -35,13 +36,13 @@ def find_issue(current: Folder, expected: Folder) -> str:
 def test_command_line(tmp_path: Path) -> None:
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path) as td:
-        before.create_structure(root=Path(td))
+    with contextlib.chdir(tmp_path):
+        before.create_structure(root=tmp_path)
 
         result = runner.invoke(app, [before.name])
         assert result.exit_code == 0, result.output
         # assert result.output.endswith("Refactored 4 files.\n")
 
-        after = Folder.from_structure(Path(td) / before.name)
+        after = Folder.from_structure(tmp_path / before.name)
 
     assert after == expected, find_issue(after, expected)
